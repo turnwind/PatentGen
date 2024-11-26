@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专利生成器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vscode-codicons/dist/codicon.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: #cccccc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background-color: #2d2d2d;
+            padding: 0.5rem 1rem;
+        }
+        
+        .navbar-brand {
+            color: #cccccc;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 96px);
+            padding: 1rem;
+            gap: 1rem;
+        }
+        
+        .editor-container {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .side-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-width: 300px;
+        }
+        
+        .editors-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex: 1;
+        }
+        
+        .editor-section {
+            background-color: #252526;
+            border-radius: 4px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .editor-content {
+            flex: 1;
+            padding: 1rem;
+        }
+        
+        .editor-content textarea {
+            width: 100%;
+            height: 100%;
+            background-color: #1e1e1e;
+            color: #cccccc;
+            border: 1px solid #3c3c3c;
+            resize: none;
+        }
+        
+        .chat-container {
+            background-color: #252526;
+            border-radius: 4px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .chat-input {
+            padding: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chat-input textarea {
+            background-color: #1e1e1e;
+            color: #cccccc;
+            border: 1px solid #3c3c3c;
+            resize: none;
+            height: 60px;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .message.user {
+            background-color: #2d2d2d;
+        }
+        
+        .message.assistant {
+            background-color: #1e1e1e;
+        }
+        
+        .btn-primary {
+            background-color: #0e639c;
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1177bb;
+        }
+        
+        .form-control {
+            background-color: #3c3c3c;
+            border-color: #3c3c3c;
+            color: #cccccc;
+        }
+        
+        .form-control:focus {
+            background-color: #3c3c3c;
+            border-color: #007acc;
+            color: #cccccc;
+        }
+        
+        .steps-container {
+            background-color: #252526;
+            border-radius: 4px;
+            padding: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            background-color: #2d2d2d;
+            transition: all 0.3s ease;
+        }
+        
+        .step-item.active {
+            background-color: #3d3d3d;
+        }
+        
+        .step-item.completed {
+            background-color: #2d3d2d;
+        }
+        
+        .step-item.error {
+            background-color: #3d2d2d;
+        }
+        
+        .step-icon {
+            font-size: 1.2rem;
+            min-width: 24px;
+        }
+        
+        .step-icon.processing {
+            animation: spin 1s linear infinite;
+        }
+        
+        .step-message {
+            flex-grow: 1;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .step-time {
+            font-size: 0.8rem;
+            color: #888;
+            white-space: nowrap;
+        }
+        
+        .step-output {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 0.25rem;
+            padding-left: 1.5rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span class="navbar-brand">
+            <span class="codicon codicon-beaker"></span>
+            专利生成器
+        </span>
+    </nav>
+    
+    <div class="main-container">
+        <div class="editor-container">
+            <!-- 文件操作按钮 -->
+            <div class="button-group mb-3">
+                <input type="file" id="pdfFile" class="d-none" accept=".pdf">
+                <button class="btn btn-primary" onclick="document.getElementById('pdfFile').click()">
+                    <span class="codicon codicon-cloud-upload"></span> 上传PDF
+                </button>
+                <button class="btn btn-success" id="generateBtn">
+                    <span class="codicon codicon-play"></span> 生成专利
+                </button>
+                <button class="btn btn-info" id="exportBtn">
+                    <span class="codicon codicon-save"></span> 导出Word
+                </button>
+            </div>
+
+            <!-- 编辑器面板 -->
+            <div class="editors-panel">
+                <!-- 摘要编辑器 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <span class="codicon codicon-symbol-class"></span>
+                        摘要
+                        <button class="btn btn-sm btn-outline-primary ms-auto" onclick="askLLM('abstract')">
+                            <span class="codicon codicon-comment-discussion"></span>
+                        </button>
+                    </div>
+                    <div class="editor-content">
+                        <textarea id="abstractEditor" class="form-control"></textarea>
+                    </div>
+                </div>
+
+                <!-- 权利要求编辑器 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <span class="codicon codicon-list-ordered"></span>
+                        权利要求
+                        <button class="btn btn-sm btn-outline-primary ms-auto" onclick="askLLM('claims')">
+                            <span class="codicon codicon-comment-discussion"></span>
+                        </button>
+                    </div>
+                    <div class="editor-content">
+                        <textarea id="claimsEditor" class="form-control"></textarea>
+                    </div>
+                </div>
+
+                <!-- 说明书编辑器 -->
+                <div class="editor-section">
+                    <div class="section-header">
+                        <span class="codicon codicon-book"></span>
+                        说明书
+                        <button class="btn btn-sm btn-outline-primary ms-auto" onclick="askLLM('description')">
+                            <span class="codicon codicon-comment-discussion"></span>
+                        </button>
+                    </div>
+                    <div class="editor-content">
+                        <textarea id="descriptionEditor" class="form-control"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="side-panel">
+            <!-- 步骤显示 -->
+            <div class="steps-container">
+                <div class="section-header">
+                    <span class="codicon codicon-terminal"></span>
+                    处理步骤
+                </div>
+                <div id="stepsContent"></div>
+            </div>
+
+            <!-- LLM对话框 -->
+            <div class="chat-container">
+                <div class="section-header">
+                    <span class="codicon codicon-comment-discussion"></span>
+                    AI助手
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input">
+                    <textarea id="chatInput" class="form-control" placeholder="输入消息..."></textarea>
+                    <button class="btn btn-primary" onclick="sendMessage()">
+                        <span class="codicon codicon-send"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar" id="statusBar">
+        就绪
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let patentContent = null;
+        
+        // 文件上传处理
+        document.getElementById('pdfFile').addEventListener('change', async function(e) {
+            if (!this.files.length) return;
+            
+            const file = this.files[0];
+            if (!file.name.endsWith('.pdf')) {
+                alert('请上传PDF文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                updateStatus('正在上传文件...');
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('generateBtn').disabled = false;
+                    updateStatus('文件上传成功，可以开始生成');
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                alert('上传失败: ' + error.message);
+                updateStatus('上传失败');
+            }
+        });
+        
+        // 生成专利文档
+        document.getElementById('generateBtn').addEventListener('click', async function() {
+            try {
+                this.disabled = true;
+                updateStatus('正在生成专利文档...');
+                
+                const response = await fetch('/generate', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    patentContent = result.content;
+                    document.getElementById('abstractEditor').value = result.content.abstract;
+                    document.getElementById('claimsEditor').value = result.content.claims;
+                    document.getElementById('descriptionEditor').value = result.content.description;
+                    document.getElementById('exportBtn').disabled = false;
+                    updateStatus('专利文档生成完成');
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                alert('生成失败: ' + error.message);
+                updateStatus('生成失败');
+            } finally {
+                this.disabled = false;
+            }
+        });
+        
+        // 导出Word文档
+        document.getElementById('exportBtn').addEventListener('click', async function() {
+            if (!patentContent) return;
+            
+            try {
+                updateStatus('正在导出Word文档...');
+                const response = await fetch('/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(patentContent)
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'patent.docx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    updateStatus('Word文档导出完成');
+                } else {
+                    throw new Error('导出失败');
+                }
+            } catch (error) {
+                alert('导出失败: ' + error.message);
+                updateStatus('导出失败');
+            }
+        });
+        
+        // WebSocket事件处理
+        socket.on('step_update', (data) => {
+            const step = data.step;
+            if (!step) return;
+            
+            console.log('Received step update:', step);  // 调试日志
+            
+            // 处理步骤更新
+            const container = document.getElementById('stepsContent');
+            if (container) {
+                // 创建或更新步骤显示
+                let stepElement = document.getElementById(`step-${step.message}`);
+                if (!stepElement) {
+                    stepElement = document.createElement('div');
+                    stepElement.id = `step-${step.message}`;
+                    stepElement.className = 'step-item';
+                    container.appendChild(stepElement);
+                }
+                
+                // 更新步骤状态
+                stepElement.innerHTML = `
+                    <span class="step-icon codicon codicon-${step.status === 'completed' ? 'check' : 
+                                                          step.status === 'error' ? 'error' : 'loading'}"></span>
+                    <span class="step-message">${step.message}</span>
+                    ${step.timestamp ? `<span class="step-time">${step.timestamp}</span>` : ''}
+                `;
+                
+                // 设置状态类
+                stepElement.className = `step-item ${step.status}`;
+                
+                // 滚动到底部
+                container.scrollTop = container.scrollHeight;
+            }
+            
+            // 处理内容更新
+            if (step.type === 'content' && step.part && step.content) {
+                console.log('Updating content:', step.part);  // 调试日志
+                const editor = document.getElementById(`${step.part}Editor`);
+                if (editor) {
+                    editor.value = step.content;
+                    
+                    // 更新专利内容对象
+                    if (!patentContent) patentContent = {};
+                    patentContent[step.part] = step.content;
+                    
+                    // 检查是否所有部分都已生成
+                    if (patentContent.abstract && patentContent.claims && patentContent.description) {
+                        document.getElementById('exportBtn').disabled = false;
+                    }
+                    
+                    // 触发编辑器的change事件
+                    const event = new Event('change');
+                    editor.dispatchEvent(event);
+                }
+            }
+            
+            // 更新状态栏
+            if (step.message) {
+                updateStatus(step.message);
+            }
+        });
+        
+        // 定期获取最新步骤
+        setInterval(async () => {
+            try {
+                const response = await fetch('/get_steps');
+                const data = await response.json();
+                if (data.success) {
+                    updateSteps(data.steps);
+                }
+            } catch (error) {
+                console.error('Error fetching steps:', error);
+            }
+        }, 1000);
+
+        // 更新步骤显示
+        function updateSteps(steps) {
+            const container = document.getElementById('stepsContent');
+            if (!container) return;
+            
+            // 保留最后10个步骤
+            const recentSteps = steps.slice(-10);
+            
+            container.innerHTML = '';
+            
+            recentSteps.forEach((step, index) => {
+                const stepElement = document.createElement('div');
+                stepElement.className = 'step-item' + (index === recentSteps.length - 1 ? ' active' : '');
+                
+                // 图标
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'codicon ' + (step.message.includes('完成') ? 'codicon-check' : 'codicon-sync');
+                iconSpan.classList.add('step-icon');
+                
+                // 消息
+                const messageSpan = document.createElement('span');
+                messageSpan.className = 'step-message';
+                messageSpan.textContent = step.message;
+                
+                // 时间
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'step-time';
+                timeSpan.textContent = step.timestamp;
+                
+                stepElement.appendChild(iconSpan);
+                stepElement.appendChild(messageSpan);
+                stepElement.appendChild(timeSpan);
+                container.appendChild(stepElement);
+            });
+            
+            // 自动滚动到最新步骤
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 更新状态栏
+        function updateStatus(message) {
+            document.getElementById('statusBar').textContent = message;
+        }
+        
+        // LLM对话框相关函数
+        function askLLM(type) {
+            const message = document.getElementById(`${type}Editor`).value;
+            socket.emit('ask_llm', { type, message });
+        }
+        
+        function sendMessage() {
+            const message = document.getElementById('chatInput').value;
+            socket.emit('send_message', message);
+            document.getElementById('chatInput').value = '';
+        }
+        
+        socket.on('llm_response', (data) => {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message assistant';
+            messageElement.textContent = data.message;
+            document.getElementById('chatMessages').appendChild(messageElement);
+        });
+        
+        socket.on('message', (data) => {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message user';
+            messageElement.textContent = data.message;
+            document.getElementById('chatMessages').appendChild(messageElement);
+        });
+    </script>
+</body>
+</html>

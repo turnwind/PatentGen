@@ -1,118 +1,102 @@
-import os
 import PyPDF2
-import docx
-from openai import OpenAI
-from config import OPENAI_API_KEY, OPENAI_MODEL, INPUT_DIR, OUTPUT_DIR, PATENT_PROMPTS, OPENAI_BASE_URL
-from agents import AnalysisAgent, AbstractAgent, ClaimsAgent, DescriptionAgent, DrawingDescriptionAgent
+from io import BytesIO
+from agents import PatentAgent
+from events import event_emitter
+import datetime
+import os
 
 class PatentGenerator:
-    def __init__(self):
-        self.client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
-        self.analysis_agent = AnalysisAgent()
-        self.abstract_agent = AbstractAgent()
-        self.claims_agent = ClaimsAgent()
-        self.description_agent = DescriptionAgent()
-        self.drawing_agent = DrawingDescriptionAgent()
+    def __init__(self, pdf_path=None):
+        self.agent = PatentAgent()
+        self.content = None
+        if pdf_path:
+            self.process_pdf_file(pdf_path)
         
-    def extract_text_from_pdf(self, pdf_path):
-        """从PDF文件中提取文本"""
+    def process_pdf_file(self, pdf_path):
+        """处理PDF文件路径"""
         try:
+            event_emitter.emit_step_update({
+                'message': '正在处理PDF文件...',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+            # 从文件读取PDF
             with open(pdf_path, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                text = ""
-                for page in reader.pages:
-                    text += page.extract_text()
-                return text
-        except Exception as e:
-            print(f"Error extracting text from PDF: {e}")
-            return None
-
-    def generate_patent_content(self, text, prompt_key):
-        """使用OpenAI API生成专利内容"""
-        try:
-            # 首先进行技术分析
-            analysis_report = self.analysis_agent.process(text)
-            if not analysis_report:
-                return None
-
-            # 根据不同部分选择不同的Agent
-            if prompt_key == "abstract":
-                return self.abstract_agent.process(analysis_report)
-            elif prompt_key == "claims":
-                return self.claims_agent.process(analysis_report)
-            elif prompt_key == "description":
-                description = self.description_agent.process(analysis_report)
-                drawing_description = self.drawing_agent.process(analysis_report)
-                return f"{description}\n\n{drawing_description}"
+                pdf_reader = PyPDF2.PdfReader(file)
+                
+                # 提取所有页面的文本
+                text_content = []
+                for page in pdf_reader.pages:
+                    text_content.append(page.extract_text())
+                
+                self.content = "\n".join(text_content)
             
-        except Exception as e:
-            print(f"Error generating patent content: {e}")
-            return None
-
-    def create_patent_document(self, abstract, claims, description, output_path):
-        """创建专利文档"""
-        try:
-            doc = docx.Document()
+            event_emitter.emit_step_update({
+                'message': 'PDF文件处理完成',
+                'status': 'completed',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
             
-            # 添加标题
-            doc.add_heading('发明专利申请', 0)
-            
-            # 添加摘要
-            doc.add_heading('摘要', 1)
-            doc.add_paragraph(abstract)
-            
-            # 添加权利要求
-            doc.add_heading('权利要求', 1)
-            doc.add_paragraph(claims)
-            
-            # 添加说明书
-            doc.add_heading('说明书', 1)
-            doc.add_paragraph(description)
-            
-            # 保存文档
-            doc.save(output_path)
             return True
+            
         except Exception as e:
-            print(f"Error creating patent document: {e}")
+            event_emitter.emit_step_update({
+                'message': f'PDF处理失败: {str(e)}',
+                'status': 'error',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
             return False
-
-    def process_paper(self, input_file):
-        """处理论文并生成专利文档"""
-        # 检查文件是否存在
-        if not os.path.exists(input_file):
-            print(f"Input file not found: {input_file}")
-            return False
-
-        # 提取文本
-        paper_text = self.extract_text_from_pdf(input_file)
-        if not paper_text:
-            return False
-
-        # 生成专利内容
-        print("正在生成专利摘要...")
-        abstract = self.generate_patent_content(paper_text, "abstract")
-        
-        print("正在生成权利要求...")
-        claims = self.generate_patent_content(paper_text, "claims")
-        
-        print("正在生成说明书...")
-        description = self.generate_patent_content(paper_text, "description")
-
-        if not all([abstract, claims, description]):
-            print("Error generating patent content")
-            return False
-
-        # 创建输出文件名
-        output_file = os.path.join(
-            OUTPUT_DIR,
-            f"专利申请书_{os.path.splitext(os.path.basename(input_file))[0]}.docx"
-        )
-
-        # 创建专利文档
-        if self.create_patent_document(abstract, claims, description, output_file):
-            print(f"专利文档已生成: {output_file}")
+    
+    def process_pdf(self, pdf_file):
+        """处理PDF文件对象"""
+        try:
+            event_emitter.emit_step_update({
+                'message': '正在处理PDF文件...',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+            # 从BytesIO读取PDF
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            # 提取所有页面的文本
+            text_content = []
+            for page in pdf_reader.pages:
+                text_content.append(page.extract_text())
+            
+            self.content = "\n".join(text_content)
+            
+            event_emitter.emit_step_update({
+                'message': 'PDF文件处理完成',
+                'status': 'completed',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
             return True
-        return False
+            
+        except Exception as e:
+            event_emitter.emit_step_update({
+                'message': f'PDF处理失败: {str(e)}',
+                'status': 'error',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            return False
+    
+    def generate_patent(self):
+        """生成专利文档"""
+        if not self.content:
+            raise ValueError("请先上传PDF文件")
+            
+        try:
+            # 使用统一的代理生成所有部分
+            result = self.agent.process(self.content)
+            return result
+            
+        except Exception as e:
+            event_emitter.emit_step_update({
+                'message': f'生成失败: {str(e)}',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            return None
 
 def main():
     # 检查必要的目录是否存在
@@ -140,7 +124,16 @@ def main():
     for pdf_file in pdf_files:
         input_path = os.path.join(INPUT_DIR, pdf_file)
         print(f"\n处理文件: {pdf_file}")
-        generator.process_paper(input_path)
+        generator = PatentGenerator(input_path)
+        patent = generator.generate_patent()
+        if patent:
+            output_file = os.path.join(
+                OUTPUT_DIR,
+                f"专利申请书_{os.path.splitext(os.path.basename(input_path))[0]}.docx"
+            )
+            with open(output_file, 'w') as f:
+                f.write(patent)
+            print(f"专利文档已生成: {output_file}")
 
 if __name__ == "__main__":
     main()
