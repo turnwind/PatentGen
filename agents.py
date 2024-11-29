@@ -100,32 +100,7 @@ class PatentAgent(BaseAgent):
             api_key=OPENAI_API_KEY,
             base_url=OPENAI_BASE_URL
         )
-    
-    def ask_llm(self, prompt):
-        """
-        向LLM发送请求并获取回复
-        """
-        try:
-            self.log_step("正在处理LLM请求...", "", "")
-            
-            response = self.client.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "你是一个专业的专利代理人,擅长专利文档的撰写和优化。请用专业且规范的方式回答问题。"},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=2000
-            )
-            
-            result = response.choices[0].message.content
-            self.log_step("LLM请求处理完成", "", "")
-            return result
-            
-        except Exception as e:
-            self.log_step(f"LLM请求处理失败: {str(e)}", "", "")
-            raise
-    
+
     def generate_abstract(self, content):
         """生成专利摘要"""
         try:
@@ -208,6 +183,19 @@ class PatentAgent(BaseAgent):
             self.log_step("生成说明书", f"生成说明书失败: {str(e)}", "", "error")
             raise e
 
+
+    def update_step_msg(self, message, part, content ):
+        event_emitter.emit_step_update({
+            'message': message,
+            'type': 'content',
+            'part': part,
+            'content': content,
+            'status': 'completed',
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+
+
+
     def process(self, content):
         """分步生成专利文档"""
         result = {
@@ -223,98 +211,16 @@ class PatentAgent(BaseAgent):
             self.log_step("分析论文", "研究论文分析完成", "", "completed")
             
             # 2. 生成摘要
-            self.log_step("生成摘要", "正在生成专利摘要...", "", "processing")
-            abstract_prompt = """
-            你是一个专业的专利代理人。请根据以下研究论文内容，生成一个专利摘要。要求：
-            1. 遵循中国专利申请的格式要求
-            2. 包含发明所要解决的技术问题
-            3. 描述技术方案的主要技术特征
-            4. 突出发明的有益效果
-            5. 语言简洁明了
-            6. 不超过300字
-            
-            研究论文内容：
-            {content}
-            """
-            result['abstract'] = self.get_completion(abstract_prompt.format(content=content))
-            self.log_step("生成摘要", "专利摘要生成完成", result['abstract'], "completed")
-            # 实时发送摘要内容
-            event_emitter.emit_step_update({
-                'message': '更新摘要内容',
-                'type': 'content',
-                'part': 'abstract',
-                'content': result['abstract'],
-                'status': 'completed',
-                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            })
-            
+            result['abstract'] = self.generate_abstract(content)
+            self.update_step_msg('更新摘要内容', 'abstract', result['abstract'])
+
             # 3. 生成权利要求
-            self.log_step("生成权利要求", "正在生成专利权利要求...", "", "processing")
-            claims_prompt = """
-            基于以下研究论文内容，生成专利权利要求书。要求：
-            1. 符合中国专利法对权利要求书的规定
-            2. 包含独立权利要求和从属权利要求
-            3. 使用标准的权利要求书撰写格式
-            4. 保护范围要适当，既要覆盖核心技术特征，又不能过于宽泛
-            5. 技术特征完整、清楚
-            6. 从属权利要求应进一步限定独立权利要求的技术特征
-            
-            研究论文内容：
-            {content}
-            
-            已生成的摘要：
-            {abstract}
-            """
-            result['claims'] = self.get_completion(claims_prompt.format(
-                content=content,
-                abstract=result['abstract']
-            ))
-            self.log_step("生成权利要求", "专利权利要求生成完成", result['claims'], "completed")
-            # 实时发送权利要求内容
-            event_emitter.emit_step_update({
-                'message': '更新权利要求内容',
-                'type': 'content',
-                'part': 'claims',
-                'content': result['claims'],
-                'status': 'completed',
-                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            })
-            
+            result['claims'] = self.generate_claims(content, result['abstract'])
+            self.update_step_msg('更新权利要求内容', 'claims', result['claims'])
+
             # 4. 生成说明书
-            self.log_step("生成说明书", "正在生成专利说明书...", "", "processing")
-            description_prompt = """
-            基于以下研究论文内容，生成专利说明书。要求：
-            1. 符合中国专利法对说明书的规定
-            2. 包含标准的说明书结构：技术领域、背景技术、发明内容、附图说明（如有）、具体实施方式
-            3. 充分公开发明的技术方案
-            4. 详细描述至少一种优选实施例
-            5. 语言规范，避免使用"本发明"等字样
-            6. 与权利要求书和摘要保持一致
-            
-            研究论文内容：
-            {content}
-            
-            已生成的摘要：
-            {abstract}
-            
-            已生成的权利要求：
-            {claims}
-            """
-            result['description'] = self.get_completion(description_prompt.format(
-                content=content,
-                abstract=result['abstract'],
-                claims=result['claims']
-            ))
-            self.log_step("生成说明书", "专利说明书生成完成", result['description'], "completed")
-            # 实时发送说明书内容
-            event_emitter.emit_step_update({
-                'message': '更新说明书内容',
-                'type': 'content',
-                'part': 'description',
-                'content': result['description'],
-                'status': 'completed',
-                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            })
+            result['description'] = self.generate_description(content, result['abstract'], result['claims'])
+            self.update_step_msg('更新说明书内容', 'description', result['description'])
             
             # 5. 完成处理
             self.log_step("处理完成", "专利文档生成完成", "", "completed")
@@ -332,5 +238,3 @@ def get_agent_steps():
 # 创建PatentAgent实例
 patent_agent = PatentAgent()
 
-# 导出实例和函数
-__all__ = ['patent_agent', 'get_agent_steps']

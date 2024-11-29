@@ -84,9 +84,24 @@ def generate_patent():
         # 发送初始状态
         event_emitter.emit_step_update({'message': '开始生成专利文档...'})
         
-        # 生成专利文档
-        result = patent_generator.generate_patent()
-        
+        # 生成专利文档 step bt step...
+        patent_generator.generate_patent_header()
+
+        result = {
+            'abstract': '',
+            'claims': '',
+            'description': ''
+        }
+
+        result['abstract'] = patent_generator.generate_patent_abstract()
+
+
+        result['claims'] = patent_generator.generate_patent_claims()
+
+
+        result['description'] = patent_generator.generate_patent_description()
+
+
         if not result:
             return jsonify({'success': False, 'error': '生成专利文档失败'})
         
