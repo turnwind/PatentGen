@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 import os
 from datetime import datetime
 from patent_generator import PatentGenerator
@@ -11,7 +11,7 @@ from events import event_emitter
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上传文件大小为16MB
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app)
 
 # 初始化事件发射器并传入socketio实例
 event_emitter.init_app(socketio)
@@ -81,40 +81,30 @@ def generate_patent():
         if not patent_generator:
             return jsonify({'success': False, 'error': '请先上传PDF文件'})
         
-        # 发送初始状态
-        event_emitter.emit_step_update({'message': '开始生成专利文档...'})
+        data = request.get_json()
+        step = data.get('step')
+
+        if step == 'abstract':
+            abstract = patent_generator.generate_patent_abstract()
+            socketio.emit('step_update', {'message': '专利摘要生成完成'}, namespace='/test')
+            return jsonify({'success': True, 'content': abstract})
+
+        elif step == 'claims':
+            claims = patent_generator.generate_patent_claims()
+            socketio.emit('step_update', {'message': '专利权利要求生成完成'}, namespace='/test')
+            return jsonify({'success': True, 'content': claims})
+
+        elif step == 'description':
+            description = patent_generator.generate_patent_description()
+            socketio.emit('step_update', {'message': '专利描述生成完成'}, namespace='/test')
+            return jsonify({
+                'success': True,
+                'content': description,
+                'final': True  # 表示这是最后一步
+            })
         
-        # 生成专利文档 step bt step...
-        patent_generator.generate_patent_header()
-
-        result = {
-            'abstract': '',
-            'claims': '',
-            'description': ''
-        }
-
-        result['abstract'] = patent_generator.generate_patent_abstract()
-
-
-        result['claims'] = patent_generator.generate_patent_claims()
-
-
-        result['description'] = patent_generator.generate_patent_description()
-
-
-        if not result:
-            return jsonify({'success': False, 'error': '生成专利文档失败'})
-        
-        # 发送完成状态
-        event_emitter.emit_step_update({'message': '专利文档生成完成'})
-        
-        return jsonify({
-            'success': True,
-            'content': result
-        })
     except Exception as e:
-        # 发送错误状态
-        event_emitter.emit_step_update({'message': f'生成失败: {str(e)}'})
+        socketio.emit('step_update', {'message': f'生成失败: {str(e)}'}, namespace='/test')
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/export', methods=['POST'])
