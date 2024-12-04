@@ -1,12 +1,12 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from flask_socketio import SocketIO, emit
 import os
 from datetime import datetime
-from patent_generator import PatentGenerator
+from patent_gen.patent_generator import PatentGenerator
 from docx import Document
 from io import BytesIO
-from agents import get_agent_steps, patent_agent
-from events import event_emitter
+from patent_gen.agents import get_agent_steps, patent_agent
+from patent_gen.events import event_emitter
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'

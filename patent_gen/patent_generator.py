@@ -1,9 +1,7 @@
 import PyPDF2
-from io import BytesIO
-from agents import PatentAgent
-from events import event_emitter
+from patent_gen.agents import PatentAgent
+from patent_gen.events import event_emitter
 import datetime
-import os
 
 class PatentGenerator:
     def __init__(self, pdf_path=None):

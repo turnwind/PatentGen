@@ -1,7 +1,3 @@
-"""
-事件处理模块
-"""
-
 import datetime
 
 class EventEmitter:

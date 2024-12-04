@@ -32,7 +32,6 @@ pip install -r requirements.txt
 ```
 
 3. 配置API密钥：
-   - 复制 `config.py.example` 为 `config.py`
    - 在 `config.py` 中设置你的 OpenAI API 密钥和基础URL
 
 ## 使用方法
@@ -51,36 +50,6 @@ python app.py
    - 点击"生成专利"开始处理
    - 实时查看生成进度和内容
    - 下载生成的Word文档
-
-### 桌面GUI
-
-1. 启动桌面应用：
-```bash
-python patent_generator_gui.py
-```
-
-2. 使用步骤：
-   - 点击"浏览"选择PDF文件
-   - 点击"生成专利"开始处理
-   - 查看处理日志和进度
-   - 生成完成后自动保存Word文档
-
-## 目录结构
-
-```
-PatentGen/
-├── app.py              # Web应用主程序
-├── patent_generator_gui.py  # 桌面GUI程序
-├── patent_generator.py # 专利生成核心逻辑
-├── agents.py          # AI代理实现
-├── events.py          # 事件处理系统
-├── config.py          # 配置文件
-├── templates/         # Web界面模板
-├── static/           # Web静态资源
-├── input/            # 输入文件目录
-├── output/           # 输出文件目录
-└── uploads/          # 上传文件临时目录
-```
 
 ## 配置说明
 
@@ -115,7 +84,7 @@ PatentGen/
 
 ### v1.0.0 (2024-03-xx)
 - 初始版本发布
-- 支持Web界面和桌面GUI
+- 支持Web界面
 - 实现基本的专利文档生成功能
 - 添加实时进度显示
 - 支持Word文档导出

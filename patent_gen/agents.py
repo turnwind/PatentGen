@@ -1,13 +1,11 @@
 from abc import ABC, abstractmethod
 from openai import OpenAI
-import os
-import json
 import time
 from datetime import datetime
 from collections import deque
 import threading
 from config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
-from events import event_emitter
+from patent_gen.events import event_emitter
 
 class StepLogger:
     def __init__(self, max_steps=100):
@@ -66,7 +64,7 @@ class BaseAgent(ABC):
         step_logger.log_step(step_data)
         return step_data
 
-    def get_completion(self, prompt, temperature=0.7):
+    def run_llm(self, prompt, temperature=0.7):
         """获取OpenAI API的响应"""
         try:
             self.log_step("正在发送请求到LLM", prompt)
@@ -117,7 +115,7 @@ class PatentAgent(BaseAgent):
             研究论文内容：
             {content}
             """
-            abstract = self.get_completion(abstract_prompt.format(content=content))
+            abstract = self.run_llm(abstract_prompt.format(content=content))
             self.log_step("生成摘要", "专利摘要生成完成", abstract, "completed")
             return abstract
         except Exception as e:
@@ -143,7 +141,7 @@ class PatentAgent(BaseAgent):
             已生成的摘要：
             {abstract}
             """
-            claims = self.get_completion(claims_prompt.format(content=content, abstract=abstract))
+            claims = self.run_llm(claims_prompt.format(content=content, abstract=abstract))
             self.log_step("生成权利要求", "专利权利要求生成完成", claims, "completed")
             return claims
         except Exception as e:
@@ -172,7 +170,7 @@ class PatentAgent(BaseAgent):
             已生成的权利要求：
             {claims}
             """
-            description = self.get_completion(description_prompt.format(
+            description = self.run_llm(description_prompt.format(
                 content=content,
                 abstract=abstract,
                 claims=claims
