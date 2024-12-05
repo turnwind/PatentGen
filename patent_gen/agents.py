@@ -175,7 +175,7 @@ class PatentAgent(BaseAgent):
                 abstract=abstract,
                 claims=claims
             ))
-            self.log_step("生成说明书", "专利说明书生成完成", description, "completed")
+            self.log_step("专利生成完成", "专利说明书生成完成", description, "completed")
             return description
         except Exception as e:
             self.log_step("生成说明书", f"生成说明书失败: {str(e)}", "", "error")

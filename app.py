@@ -86,22 +86,15 @@ def generate_patent():
 
         if step == 'abstract':
             abstract = patent_generator.generate_patent_abstract()
-            socketio.emit('step_update', {'message': '专利摘要生成完成'}, namespace='/test')
             return jsonify({'success': True, 'content': abstract})
 
         elif step == 'claims':
             claims = patent_generator.generate_patent_claims()
-            socketio.emit('step_update', {'message': '专利权利要求生成完成'}, namespace='/test')
             return jsonify({'success': True, 'content': claims})
 
         elif step == 'description':
             description = patent_generator.generate_patent_description()
-            socketio.emit('step_update', {'message': '专利描述生成完成'}, namespace='/test')
-            return jsonify({
-                'success': True,
-                'content': description,
-                'final': True  # 表示这是最后一步
-            })
+            return jsonify({'success': True, 'content': description})
         
     except Exception as e:
         socketio.emit('step_update', {'message': f'生成失败: {str(e)}'}, namespace='/test')

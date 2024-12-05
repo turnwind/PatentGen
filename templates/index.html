@@ -38,9 +38,9 @@
                 <div class="editor-section">
                     <div class="section-header">
                         <span class="codicon codicon-symbol-class"></span>
-                        摘要
-                        <button class="btn btn-sm btn-outline-primary ms-auto" onclick="askLLM('abstract')">
-                            <span class="codicon codicon-comment-discussion"></span>
+                        专利摘要
+                        <button class="btn btn-sm btn-outline-primary ms-auto">
+                            <span class="codicon codicon-play"></span>
                         </button>
                     </div>
                     <div class="editor-content">
@@ -53,8 +53,8 @@
                     <div class="section-header">
                         <span class="codicon codicon-list-ordered"></span>
                         权利要求
-                        <button class="btn btn-sm btn-outline-primary ms-auto" onclick="askLLM('claims')">
-                            <span class="codicon codicon-comment-discussion"></span>
+                        <button class="btn btn-sm btn-outline-primary ms-auto">
+                            <span class="codicon codicon-play"></span>
                         </button>
                     </div>
                     <div class="editor-content">
@@ -67,8 +67,8 @@
                     <div class="section-header">
                         <span class="codicon codicon-book"></span>
                         说明书
-                        <button class="btn btn-sm btn-outline-primary ms-auto" onclick="askLLM('description')">
-                            <span class="codicon codicon-comment-discussion"></span>
+                        <button class="btn btn-sm btn-outline-primary ms-auto">
+                            <span class="codicon codicon-play"></span>
                         </button>
                     </div>
                     <div class="editor-content">
@@ -99,7 +99,7 @@
                 <div class="chat-input">
                     <textarea id="chatInput" class="form-control" placeholder="输入消息..."></textarea>
                     <button class="btn btn-primary" onclick="sendMessage()">
-                        <span class="codicon codicon-send"></span>
+                        <span class="codicon codicon-comment-discussion"></span>
                     </button>
                 </div>
             </div>
@@ -122,8 +122,6 @@
 
      <!-- main process -->
     <script src="/static/process.js"></script>
-    <script>
- 
-    </script>
+
 </body>
 </html>

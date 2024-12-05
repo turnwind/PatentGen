@@ -1,5 +1,5 @@
 const socket = io();
-patentContent = null;
+let patentContent = null;
 
 UploadFileProc();
 PatentGenProc();
@@ -57,8 +57,19 @@ function askLLM(type) {
 }
 
 function sendMessage() {
-    const message = document.getElementById('chatInput').value;
-    socket.emit('send_message', message);
+    // 获取用户输入的文本
+    var inputText = document.getElementById('chatInput').value;
+
+    // 创建一个新的消息元素
+    var messageDiv = document.createElement('div');
+    messageDiv.classList.add('chat-message');
+    messageDiv.textContent = inputText; // 将用户输入的文本设置为消息内容
+
+    // 将新消息添加到消息列表中
+    var chatMessages = document.getElementById('chatMessages');
+    chatMessages.appendChild(messageDiv);
+
+    // 清空输入框以便下一次输入
     document.getElementById('chatInput').value = '';
 }
 

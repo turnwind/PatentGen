@@ -1,10 +1,13 @@
 function ExportFileProc() {
    // 导出Word文档
     document.getElementById('exportBtn').addEventListener('click', async function() {
-        if (!patentContent) return;
-        
         try {
             updateStatus('正在导出Word文档...');
+
+            if (!patentContent){
+                throw new Error('404 not found!');
+            }
+
             const response = await fetch('/export', {
                 method: 'POST',
                 headers: {
