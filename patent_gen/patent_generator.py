@@ -1,4 +1,5 @@
-import PyPDF2
+import pdfplumber
+import os
 from patent_gen.agents import PatentAgent
 from patent_gen.events import event_emitter
 import datetime
@@ -23,13 +24,14 @@ class PatentGenerator:
             })
             
             # 从文件读取PDF
-            with open(pdf_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                
+            with pdfplumber.open(pdf_path) as pdf:
                 # 提取所有页面的文本
                 text_content = []
-                for page in pdf_reader.pages:
-                    text_content.append(page.extract_text())
+                for page in pdf.pages:
+                    # 提取页面文本，并保留基本格式
+                    page_text = page.extract_text(x_tolerance=3, y_tolerance=3)
+                    if page_text:
+                        text_content.append(page_text)
                 
                 self.content = "\n".join(text_content)
             
@@ -58,14 +60,16 @@ class PatentGenerator:
             })
             
             # 从BytesIO读取PDF
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            with pdfplumber.open(pdf_file) as pdf:
+                # 提取所有页面的文本
+                text_content = []
+                for page in pdf.pages:
+                    # 提取页面文本，并保留基本格式
+                    page_text = page.extract_text(x_tolerance=3, y_tolerance=3)
+                    if page_text:
+                        text_content.append(page_text)
             
-            # 提取所有页面的文本
-            text_content = []
-            for page in pdf_reader.pages:
-                text_content.append(page.extract_text())
-            
-            self.content = "\n".join(text_content)
+                self.content = "\n".join(text_content)
             
             event_emitter.emit_step_update({
                 'message': 'PDF文件处理完成',
@@ -83,6 +87,47 @@ class PatentGenerator:
             })
             return False
     
+    def read_pdf_examples(self, examples_dir):
+        """
+        Read all PDF files from the examples directory and return their text content
+        
+        Args:
+            examples_dir (str): Path to the directory containing example PDF files
+            
+        Returns:
+            str: Concatenated text content from all PDF files
+        """ 
+        
+        if not os.path.exists(examples_dir):
+            return ""
+        example_texts = []
+    
+        # 遍历examples目录下的所有PDF文件
+        for filename in os.listdir(examples_dir):
+            if filename.endswith('.pdf'):
+                file_path = os.path.join(examples_dir, filename)
+                try:
+                    # 使用pdfplumber读取PDF文件
+                    with pdfplumber.open(file_path) as pdf:
+                        # 提取文本内容
+                        text = ""
+                        for page in pdf.pages:
+                            # 提取页面文本，并保留基本格式
+                            page_text = page.extract_text(x_tolerance=3, y_tolerance=3)
+                            print(page_text)
+                            if page_text:
+                                text += page_text + "\n"
+                    
+                    if text.strip():  # 只有当提取到文本时才添加到示例中
+                        example_texts.append(f"示例 {filename}:\n{text}\n")
+                    
+                except Exception as e:
+                    print(f"Error reading PDF file {filename}: {str(e)}")
+                    continue
+        
+        # 合并所有示例文本
+        return "\n".join(example_texts) if example_texts else ""
+
     def generate_patent_header(self):
         """生成专利文档"""
         if not self.content:
@@ -100,42 +145,65 @@ class PatentGenerator:
             })
             return None
 
-    def generate_patent_abstract(self):
+    def generate_patent_abstract(self, examples=""):
+        """生成专利摘要"""
+        if not self.content:
+            raise ValueError("请先上传PDF文件")
+            
         try:
-            # 使用统一的代理生成所有部分
-            self.abstract = self.agent.generate_abstract(self.content)
+            result = self.agent.process(self.content, examples)
+            self.abstract = result['abstract']
             return self.abstract
             
         except Exception as e:
             event_emitter.emit_step_update({
-                'message': f'生成失败: {str(e)}',
+                'message': f'生成摘要失败: {str(e)}',
                 'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             })
             return None
 
 
-    def generate_patent_claims(self):
+    def generate_patent_claims(self, examples=""):
+        """生成专利权利要求"""
+        if not self.content:
+            raise ValueError("请先上传PDF文件")
+            
         try:
-            # 使用统一的代理生成所有部分
-            self.claims = self.agent.generate_claims(self.content, self.abstract)
+            if not self.abstract:
+                result = self.agent.process(self.content, examples)
+                self.abstract = result['abstract']
+                self.claims = result['claims']
+            else:
+                result = self.agent.process(self.content, examples)
+                self.claims = result['claims']
             return self.claims
             
         except Exception as e:
             event_emitter.emit_step_update({
-                'message': f'生成失败: {str(e)}',
+                'message': f'生成权利要求失败: {str(e)}',
                 'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             })
             return None
-        
-    def generate_patent_description(self):
+    
+    def generate_patent_description(self, examples=""):
+        """生成专利说明书"""
+        if not self.content:
+            raise ValueError("请先上传PDF文件")
+            
         try:
-            # 使用统一的代理生成所有部分
-            self.description = self.agent.generate_description(self.content, self.abstract, self.claims)
+            if not self.abstract or not self.claims:
+                result = self.agent.process(self.content, examples)
+                self.abstract = result['abstract']
+                self.claims = result['claims']
+                self.description = result['description']
+            else:
+                result = self.agent.process(self.content, examples)
+                self.description = result['description']
             return self.description
             
         except Exception as e:
             event_emitter.emit_step_update({
-                'message': f'生成失败: {str(e)}',
+                'message': f'生成说明书失败: {str(e)}',
                 'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             })
             return None

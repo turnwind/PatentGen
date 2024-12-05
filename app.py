@@ -18,6 +18,7 @@ event_emitter.init_app(socketio)
 
 # 全局变量
 patent_generator = None
+examples = None
 
 @app.route('/')
 def index():
@@ -41,7 +42,7 @@ def handle_disconnect():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global patent_generator
+    global patent_generator, examples
     try:
         if 'file' not in request.files:
             return jsonify({'success': False, 'error': '没有文件被上传'})
@@ -61,8 +62,11 @@ def upload_file():
         file_path = os.path.join(upload_folder, file.filename)
         file.save(file_path)
         
-        # 初始化专利生成器并处理PDF
+        # 初始化PatentGenerator
         patent_generator = PatentGenerator()
+        examples = patent_generator.read_pdf_examples(os.path.join(os.path.dirname(__file__), 'examples'))
+        print(examples)
+        
         if patent_generator.process_pdf_file(file_path):
             return jsonify({
                 'success': True,
@@ -70,30 +74,30 @@ def upload_file():
             })
         else:
             return jsonify({'success': False, 'error': 'PDF处理失败'})
-            
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/generate', methods=['POST'])
 def generate_patent():
-    global patent_generator
+    global patent_generator, examples
     try:
-        if not patent_generator:
+        if not patent_generator.content:
             return jsonify({'success': False, 'error': '请先上传PDF文件'})
         
         data = request.get_json()
         step = data.get('step')
 
         if step == 'abstract':
-            abstract = patent_generator.generate_patent_abstract()
+            abstract = patent_generator.generate_patent_abstract(examples)
             return jsonify({'success': True, 'content': abstract})
 
         elif step == 'claims':
-            claims = patent_generator.generate_patent_claims()
+            claims = patent_generator.generate_patent_claims(examples)
             return jsonify({'success': True, 'content': claims})
 
         elif step == 'description':
-            description = patent_generator.generate_patent_description()
+            description = patent_generator.generate_patent_description(examples)
             return jsonify({'success': True, 'content': description})
         
     except Exception as e:
