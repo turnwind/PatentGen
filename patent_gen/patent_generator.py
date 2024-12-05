@@ -7,10 +7,10 @@ import datetime
 class PatentGenerator:
     def __init__(self, pdf_path=None):
         self.agent = PatentAgent()
-        self.content = None
-        self.abstract = None
-        self.claims = None
-        self.description = None
+        self.content = ""
+        self.abstract = ""
+        self.claims = ""
+        self.description = ""
 
         if pdf_path:
             self.process_pdf_file(pdf_path)
@@ -146,21 +146,26 @@ class PatentGenerator:
             return None
 
     def generate_patent_abstract(self, examples=""):
-        """生成专利摘要"""
+        """生成专利摘要（流式响应）"""
         if not self.content:
             raise ValueError("请先上传PDF文件")
-            
         try:
-            result = self.agent.process(self.content, examples)
-            self.abstract = result['abstract']
-            return self.abstract
-            
+            # 使用统一的代理生成所有部分
+            for abstract_part in self.agent.generate_abstract(self.content, examples):
+                self.abstract += abstract_part
+                yield abstract_part  # 逐个返回摘要的每一部分
+                
+            # 所有部分生成完毕后，可以在这里执行一些收尾工作
+            event_emitter.emit_step_update({
+                'message': '摘要生成完成',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
         except Exception as e:
             event_emitter.emit_step_update({
                 'message': f'生成摘要失败: {str(e)}',
                 'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             })
-            return None
+            raise e
 
 
     def generate_patent_claims(self, examples=""):
@@ -169,41 +174,38 @@ class PatentGenerator:
             raise ValueError("请先上传PDF文件")
             
         try:
-            if not self.abstract:
-                result = self.agent.process(self.content, examples)
-                self.abstract = result['abstract']
-                self.claims = result['claims']
-            else:
-                result = self.agent.process(self.content, examples)
-                self.claims = result['claims']
-            return self.claims
+            # 使用统一的代理生成所有部分
+            for claims_part in self.agent.generate_claims(self.content, self.abstract, examples):
+                self.claims += claims_part
+                yield claims_part
+            # 所有部分生成完毕后，可以在这里执行一些收尾工作
+            event_emitter.emit_step_update({
+                'message': '权利要求部分生成完成',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
             
         except Exception as e:
             event_emitter.emit_step_update({
                 'message': f'生成权利要求失败: {str(e)}',
                 'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             })
-            return None
-    
-    def generate_patent_description(self, examples=""):
-        """生成专利说明书"""
-        if not self.content:
-            raise ValueError("请先上传PDF文件")
-            
+            raise e
+        
+    def generate_patent_description(self, examples = ""):
         try:
-            if not self.abstract or not self.claims:
-                result = self.agent.process(self.content, examples)
-                self.abstract = result['abstract']
-                self.claims = result['claims']
-                self.description = result['description']
-            else:
-                result = self.agent.process(self.content, examples)
-                self.description = result['description']
-            return self.description
-            
+            # 使用统一的代理生成所有部分
+            for description_part in self.agent.generate_description(self.content, self.abstract, self.claims, examples):
+                self.description += description_part
+                yield description_part
+
+            # 所有部分生成完毕后，可以在这里执行一些收尾工作
+            event_emitter.emit_step_update({
+                'message': '说明书部分生成完成',
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
         except Exception as e:
             event_emitter.emit_step_update({
                 'message': f'生成说明书失败: {str(e)}',
                 'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             })
-            return None
+            return e

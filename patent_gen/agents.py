@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 from collections import deque
 import threading
+import json
 from config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
 from patent_gen.events import event_emitter
 
@@ -65,7 +66,6 @@ class BaseAgent(ABC):
         return step_data
 
     def run_llm(self, prompt, temperature=0.7):
-        """获取OpenAI API的响应"""
         try:
             self.log_step("正在发送请求到LLM", prompt)
             
@@ -73,13 +73,18 @@ class BaseAgent(ABC):
             response = self.client.chat.completions.create(
                 model=OPENAI_MODEL,
                 messages=messages,
-                temperature=temperature
+                temperature=temperature,
+                stream=True  # 假设API支持流式传输
             )
             
-            result = response.choices[0].message.content
-            self.log_step("收到LLM响应", None, result, "completed")
-            return result
-            
+            for chunk in response:
+                result = chunk.choices[0].delta.content
+                if result == None:
+                    break
+
+                #self.log_step("收到LLM响应", None, result, "completed")
+                yield result  # 使用yield返回结果，使其成为流的一部分   
+                
         except Exception as e:
             error_msg = f"API调用错误: {str(e)}"
             self.log_step("发生错误", None, error_msg, "error")
@@ -119,9 +124,11 @@ class PatentAgent(BaseAgent):
             参考例子：
             {examples}
             """
-            abstract = self.run_llm(abstract_prompt.format(content=content, examples=examples))
-            self.log_step("生成摘要", "专利摘要生成完成", abstract, "completed")
-            return abstract
+        # 调用run_llm函数，它现在是一个生成器，返回流式响应
+            for part in self.run_llm(abstract_prompt.format(content=content, examples=examples)):
+                yield part  # 逐个返回摘要的每一部分
+            self.log_step("生成摘要", "专利摘要生成完成", "", "completed")
+
         except Exception as e:
             self.log_step("生成摘要", f"生成摘要失败: {str(e)}", "", "error")
             raise e
@@ -149,9 +156,11 @@ class PatentAgent(BaseAgent):
             参考例子：
             {examples}
             """
-            claims = self.run_llm(claims_prompt.format(content=content, abstract=abstract, examples=examples))
-            self.log_step("生成权利要求", "专利权利要求生成完成", claims, "completed")
-            return claims
+            # 调用run_llm函数，它现在是一个生成器，返回流式响应
+            for part in self.run_llm(claims_prompt.format(content=content, abstract=abstract, examples=examples)):
+                yield part  # 逐个返回摘要的每一部分
+            self.log_step("生成权利要求", "专利权利要求生成完成", "", "completed")
+
         except Exception as e:
             self.log_step("生成权利要求", f"生成权利要求失败: {str(e)}", "", "error")
             raise e
@@ -182,14 +191,19 @@ class PatentAgent(BaseAgent):
             参考例子：
             {examples}
             """
-            description = self.run_llm(description_prompt.format(
+
+            # 调用run_llm函数，它现在是一个生成器，返回流式响应
+            for part in self.run_llm(description_prompt.format(
                 content=content,
                 abstract=abstract,
                 claims=claims,
                 examples=examples
-            ))
-            self.log_step("专利生成完成", "专利说明书生成完成", description, "completed")
-            return description
+            )):
+                yield part  # 逐个返回摘要的每一部分
+
+                
+            self.log_step("专利生成完成", "专利说明书生成完成", "", "completed")
+
         except Exception as e:
             self.log_step("生成说明书", f"生成说明书失败: {str(e)}", "", "error")
             raise e
@@ -204,40 +218,9 @@ class PatentAgent(BaseAgent):
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
 
+
     def process(self, content, examples):
-        """分步生成专利文档"""
-        result = {
-            'abstract': '',
-            'claims': '',
-            'description': ''
-        }
-        
-        try:
-            # 1. 分析论文
-            self.log_step("分析论文", "正在分析研究论文内容...", "", "processing")
-            time.sleep(1)  # 给用户一个视觉反馈的时间
-            self.log_step("分析论文", "研究论文分析完成", "", "completed")
-            
-            # 2. 生成摘要
-            result['abstract'] = self.generate_abstract(content, examples)
-            self.update_step_msg('更新摘要内容', 'abstract', result['abstract'])
-
-            # 3. 生成权利要求
-            result['claims'] = self.generate_claims(content, result['abstract'], examples)
-            self.update_step_msg('更新权利要求内容', 'claims', result['claims'])
-
-            # 4. 生成说明书
-            result['description'] = self.generate_description(content, result['abstract'], result['claims'], examples)
-            self.update_step_msg('更新说明书内容', 'description', result['description'])
-            
-            # 5. 完成处理
-            self.log_step("处理完成", "专利文档生成完成", "", "completed")
-            
-            return result
-            
-        except Exception as e:
-            self.log_step("错误", f"生成失败: {str(e)}", "", "error")
-            raise e
+        pass
 
 def get_agent_steps():
     """获取所有代理的处理步骤"""

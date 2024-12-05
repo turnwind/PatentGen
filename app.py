@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+from flask import Flask, render_template, request, Response, jsonify, send_file, send_from_directory, stream_with_context
 from flask_socketio import SocketIO, emit
 import os
 from datetime import datetime
@@ -84,22 +84,36 @@ def generate_patent():
     try:
         if not patent_generator.content:
             return jsonify({'success': False, 'error': '请先上传PDF文件'})
-        
+
         data = request.get_json()
         step = data.get('step')
 
         if step == 'abstract':
-            abstract = patent_generator.generate_patent_abstract(examples)
-            return jsonify({'success': True, 'content': abstract})
+            abstract_parts = ""
+            for abstract_part in patent_generator.generate_patent_abstract(examples):
+                print(abstract_part)
+                abstract_parts += abstract_part
+            return jsonify({'success': True, 'content': abstract_parts})
+        
 
         elif step == 'claims':
-            claims = patent_generator.generate_patent_claims(examples)
-            return jsonify({'success': True, 'content': claims})
+            claims_parts = ""
+            for claims_part in patent_generator.generate_patent_claims(examples):
+                print(claims_part)
+                claims_parts += claims_part
+            return jsonify({'success': True, 'content': claims_parts})
+
 
         elif step == 'description':
-            description = patent_generator.generate_patent_description(examples)
-            return jsonify({'success': True, 'content': description})
-        
+            description_parts = ""
+            for description_part in patent_generator.generate_patent_description(examples):
+                print(description_part)
+                description_parts += description_part
+            return jsonify({'success': True, 'content': description_parts})
+        else:
+            return jsonify({'success': True, 'content': "else"})
+            
+
     except Exception as e:
         socketio.emit('step_update', {'message': f'生成失败: {str(e)}'}, namespace='/test')
         return jsonify({'success': False, 'error': str(e)})
