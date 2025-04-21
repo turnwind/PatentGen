@@ -6,7 +6,6 @@ load_dotenv()
 
 # OpenAI配置
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-#OPENAI_API_KEY = "sk-svcacct-sNAGGSl47dHE0QS6ZBwF2Gu4W9ogMY_F57LLVU4elVSZrM-rWSUTilQhexhxb1oeHT3BlbkFJNPVWVHgD1TB3qE8OdhVTqgir5ZA9_d_va9mcntpwzaa-0HH9wi8w15s8fXUAHvu2wA"
 OPENAI_BASE_URL = "https://api.chatanywhere.tech" 
 OPENAI_MODEL = "gpt-4-1106-preview"  # 使用最新的GPT-4模型
 OPENAI_MODEL = "claude-3-5-sonnet-20241022"
